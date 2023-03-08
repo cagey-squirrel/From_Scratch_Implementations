@@ -145,7 +145,7 @@ def ada_boost(train_features, train_labels, plot_progress=True, iterations=5):
         alphas.append(alpha)
 
 
-        if iteration % (iterations//10) == 0 and plot_progress:
+        if plot_progress:
             plot_examples(trees, alphas, train_features, train_labels, weights_of_examples)
     
     plot_examples(trees, alphas, train_features, train_labels, weights_of_examples)
@@ -164,7 +164,7 @@ def main():
     train_features, train_labels, test_features, test_labels = random_test_train_split(features, labels, test_percentage=10)
     train_features, test_features = standardize_features(train_features, test_features)
 
-    trees, alphas = ada_boost(train_features, train_labels, iterations=100)
+    trees, alphas = ada_boost(train_features, train_labels, iterations=7)
     test_predictions = predict_batch(trees, alphas, test_features)
     test_error = get_error(test_predictions, test_labels)
     print(f'test error = {test_error}')
