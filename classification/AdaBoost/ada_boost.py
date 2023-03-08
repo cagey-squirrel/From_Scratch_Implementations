@@ -50,7 +50,7 @@ def get_error(predictions, labels):
     return ratio
 
 
-def predict_single(trees, example):
+def predict_single(trees, alphas, example):
     '''
     This function predicts class for single sample using all trained decision trees
     Classification is done through voting
@@ -58,9 +58,9 @@ def predict_single(trees, example):
     If this average is greater than 0 it means there were more 1s than -1s
     '''
     positive_predictions = 0
-    for tree in trees:
+    for tree, alpha in zip(trees, alphas):
         prediction = tree.predict(example.reshape(1, -1))
-        positive_predictions += prediction
+        positive_predictions += alpha * prediction
 
     positive_predictions = positive_predictions[0]
     
@@ -70,7 +70,7 @@ def predict_single(trees, example):
         return -1
 
 
-def predict_batch(trees, features):
+def predict_batch(trees, alphas, features):
     '''
     This function predicts classes for all examples in features parameter
     It serves as a wrapper around predict_single function
@@ -79,14 +79,14 @@ def predict_batch(trees, features):
     predictions = []
 
     for example in features:
-        prediction = predict_single(trees, example)
+        prediction = predict_single(trees, alphas, example)
         predictions.append(prediction)
     
     predictions = np.array(predictions)
     return predictions
 
 
-def plot_examples(trees, train_features, train_labels, weights, num_of_dots=50):
+def plot_examples(trees, alphas, train_features, train_labels, weights, num_of_dots=50):
     '''
     Plots examples on a 2D grid where areas are colored based by their class
     Examples with bigger weight appear bigger on the plot
@@ -100,7 +100,7 @@ def plot_examples(trees, train_features, train_labels, weights, num_of_dots=50):
         np.linspace(ymin, ymax, num=num_of_dots, endpoint=True))
     X = np.c_[xx.ravel(), yy.ravel()]
     
-    Z = predict_batch(trees, X)
+    Z = predict_batch(trees, alphas, X)
 
     Z = Z.reshape(xx.shape)
     cs = plt.contourf(xx, yy, Z, alpha=0.2, cmap='bwr')
@@ -116,17 +116,19 @@ def plot_examples(trees, train_features, train_labels, weights, num_of_dots=50):
 
     plt.show()
 
+
 def ada_boost(train_features, train_labels, plot_progress=True, iterations=5):
 
     m = train_features.shape[0]
     weights_of_examples = 1/m * np.ones(m)
     trees = []
+    alphas = []
 
     for iteration in range(iterations):
 
         tree = Stamp()
         tree.fit(train_features, train_labels, weights_of_examples)
-        trees.append(tree)
+        
 
         train_predictions = tree.predict(train_features)
 
@@ -139,13 +141,16 @@ def ada_boost(train_features, train_labels, plot_progress=True, iterations=5):
         weights_of_examples *= np.exp(alpha * errors)
         weights_of_examples /= sum(weights_of_examples)
 
-        
+        trees.append(tree)
+        alphas.append(alpha)
+
 
         if iteration % (iterations//10) == 0 and plot_progress:
-            plot_examples(trees, train_features, train_labels, weights_of_examples)
+            plot_examples(trees, alphas, train_features, train_labels, weights_of_examples)
     
-    plot_examples(trees, train_features, train_labels, weights_of_examples)
-    return trees
+    plot_examples(trees, alphas, train_features, train_labels, weights_of_examples)
+    
+    return trees, alphas
 
 
 
@@ -159,8 +164,8 @@ def main():
     train_features, train_labels, test_features, test_labels = random_test_train_split(features, labels, test_percentage=10)
     train_features, test_features = standardize_features(train_features, test_features)
 
-    trees = ada_boost(train_features, train_labels, iterations=100)
-    test_predictions = predict_batch(trees, test_features)
+    trees, alphas = ada_boost(train_features, train_labels, iterations=100)
+    test_predictions = predict_batch(trees, alphas, test_features)
     test_error = get_error(test_predictions, test_labels)
     print(f'test error = {test_error}')
 
